@@ -1,6 +1,6 @@
 # agent-dogfeed
 
-An agent skill and CLI for dogfooding agent-facing CLIs, tools, and skills through a fresh Codex subagent.
+An agent skill and CLI for dogfooding agent-facing CLIs, tools, and skills through a fresh Codex or Claude Code subagent.
 
 `agent-dogfeed` is for questions such as:
 
@@ -18,7 +18,7 @@ skills/agent-dogfeed/SKILL.md
 ```
 
 It keeps the dogfeed loop small: write a raw prompt, run an isolated fresh
-Codex agent, read the transcript, and fix what the run exposes.
+agent, read the transcript, and fix what the run exposes.
 
 ## CLI
 
@@ -28,14 +28,15 @@ The package exposes an `agent-dogfeed` CLI:
 agent-dogfeed --help
 ```
 
-Generate a fresh Codex command from a raw prompt:
+Generate a fresh probe command from a raw prompt:
 
 ```bash
 agent-dogfeed codex --repo /absolute/path/to/repo --prompt '<raw prompt>'
+agent-dogfeed claude --repo /absolute/path/to/repo --prompt '<raw prompt>'
 ```
 
-The generated command uses `codex exec --color never` with the requested repo
-and model. It does not rewrite or template the prompt.
+Both subcommands print the probe command for review. They do not rewrite or
+template the prompt.
 
 Codex probes are isolated by default. The generated command creates a temporary
 auth-only `CODEX_HOME`, exports it for the child process, and runs with
@@ -43,14 +44,24 @@ auth-only `CODEX_HOME`, exports it for the child process, and runs with
 `--sandbox workspace-write`. Your user skills, plugins, rules, config, and
 session state are not inherited.
 
+Claude probes are isolated by default. The generated command creates a
+temporary blank `CLAUDE_CONFIG_DIR` (no auth copy is needed: Claude Code reads
+credentials from the system keychain) and runs `claude -p` with
+`--no-session-persistence`, `--strict-mcp-config`, and
+`--permission-mode bypassPermissions`. The probe emits its full transcript as
+stream-json so the parent agent can read every tool call, not just the final
+claim. Unlike Codex, Claude Code has no OS sandbox flag, so point probes at
+disposable repos or worktrees when the prompt can mutate state.
+
 When the probe needs a skill, link only that skill into the isolated state:
 
 ```bash
 agent-dogfeed codex --repo /absolute/path/to/repo --skill agent-cli --prompt '<raw prompt>'
+agent-dogfeed claude --repo /absolute/path/to/repo --skill agent-cli --prompt '<raw prompt>'
 ```
 
-Use `--user-codex` only when intentionally testing inherited user config or
-tools.
+Use `--user-codex`/`--user-claude` only when intentionally testing inherited
+user config or tools.
 
 ## Terminal Evidence
 

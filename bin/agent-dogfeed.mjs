@@ -2,7 +2,10 @@
 
 import { runCaptureTerminalCli } from "../lib/capture-terminal.mjs";
 import {
+  buildClaudePrintArgs,
   buildCodexExecArgs,
+  renderClaudeShellCommand,
+  renderIsolatedClaudeShellCommand,
   renderIsolatedCodexShellCommand,
   renderShellCommand,
 } from "../lib/probes.mjs";
@@ -10,6 +13,42 @@ import {
 const argv = process.argv.slice(2);
 const command = argv[0];
 const programName = "agent-dogfeed";
+
+const probeSpecs = {
+  codex: {
+    defaultModel: "gpt-5.4-mini",
+    userFlagKey: "user_codex",
+    blankFlagKey: "blank_codex",
+    render(options) {
+      const args = buildCodexExecArgs({
+        repo: options.repo,
+        model: options.model,
+        prompt: options.prompt,
+        isolated: options.isolated,
+      });
+
+      return options.isolated
+        ? renderIsolatedCodexShellCommand(args, options.skills)
+        : renderShellCommand("codex", args);
+    },
+  },
+  claude: {
+    defaultModel: "haiku",
+    userFlagKey: "user_claude",
+    blankFlagKey: "blank_claude",
+    render(options) {
+      const args = buildClaudePrintArgs({
+        model: options.model,
+        prompt: options.prompt,
+        isolated: options.isolated,
+      });
+
+      return options.isolated
+        ? renderIsolatedClaudeShellCommand(options.repo, args, options.skills)
+        : renderClaudeShellCommand(options.repo, args);
+    },
+  },
+};
 
 switch (command) {
   case "capture": {
@@ -19,8 +58,9 @@ switch (command) {
     break;
   }
 
-  case "codex": {
-    process.exitCode = await runCodex(argv.slice(1));
+  case "codex":
+  case "claude": {
+    process.exitCode = await runProbe(argv.slice(1), probeSpecs[command]);
     break;
   }
 
@@ -39,8 +79,8 @@ switch (command) {
   }
 }
 
-async function runCodex(args) {
-  const parsed = parseOptions(args);
+async function runProbe(args, spec) {
+  const parsed = parseOptions(args, spec);
 
   if (parsed.error) {
     process.stderr.write(`${parsed.error}\n\n${usage()}`);
@@ -58,34 +98,20 @@ async function runCodex(args) {
     return 2;
   }
 
-  const codexArgs = buildCodexExecArgs({
-    repo: options.repo,
-    model: options.model,
-    prompt: options.prompt,
-    isolated: options.isolated,
-  });
-
-  const command = options.isolated
-    ? renderIsolatedCodexShellCommand(codexArgs, options.skills)
-    : renderShellCommand("codex", codexArgs);
-  process.stdout.write(`${command}\n`);
+  process.stdout.write(`${spec.render(options)}\n`);
   return 0;
 }
 
-function parseOptions(args) {
+function parseOptions(args, { defaultModel, userFlagKey, blankFlagKey }) {
   const allowedOptions = new Set([
     "model",
     "prompt",
     "repo",
     "skill",
   ]);
-  const booleanOptions = new Set([
-    "blank_codex",
-    "user_codex",
-  ]);
   const options = {
     isolated: true,
-    model: "gpt-5.4-mini",
+    model: defaultModel,
     skills: [],
   };
 
@@ -97,12 +123,12 @@ function parseOptions(args) {
     }
 
     const key = arg.slice(2).replaceAll("-", "_");
-    if (booleanOptions.has(key)) {
-      if (key === "user_codex") {
-        options.isolated = false;
-      } else if (key === "blank_codex") {
-        options.isolated = true;
-      }
+    if (key === userFlagKey) {
+      options.isolated = false;
+      continue;
+    }
+    if (key === blankFlagKey) {
+      options.isolated = true;
       continue;
     }
 
@@ -136,11 +162,18 @@ function usage() {
   return `usage:
   ${programName} capture [--output <path>] -- <command> [args...]
   ${programName} codex --repo <path> --prompt <raw-prompt> [--model <model>] [--skill <name-or-path>] [--user-codex]
+  ${programName} claude --repo <path> --prompt <raw-prompt> [--model <model>] [--skill <name-or-path>] [--user-claude]
 
-codex prints the codex exec command for review without rewriting the prompt.
+codex and claude print the probe command for review without rewriting the prompt.
 codex probes are isolated by default: a temporary auth-only CODEX_HOME,
 --ignore-user-config, --ignore-rules, --ephemeral, and --sandbox workspace-write.
-Use --skill for each required skill to link into the isolated CODEX_HOME.
-Use --user-codex only when intentionally testing inherited user config/tools.
+claude probes are isolated by default: a temporary blank CLAUDE_CONFIG_DIR
+(auth comes from the system keychain), --no-session-persistence,
+--strict-mcp-config, and --permission-mode bypassPermissions. claude has no OS
+sandbox, so point probes at disposable repos or worktrees. claude probes emit
+the full transcript as stream-json on stdout.
+Use --skill for each required skill to link into the isolated home.
+Use --user-codex/--user-claude only when intentionally testing inherited user
+config/tools.
 `;
 }

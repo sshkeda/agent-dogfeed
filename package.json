@@ -2,7 +2,7 @@
   "name": "agent-dogfeed",
   "version": "0.1.0",
   "private": true,
-  "description": "Forward-test agent-facing CLIs and skills through fresh Codex subagents.",
+  "description": "Forward-test agent-facing CLIs and skills through fresh Codex or Claude Code subagents.",
   "license": "MIT",
   "type": "module",
   "bin": {

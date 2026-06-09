@@ -98,6 +98,59 @@ try {
   ) {
     throw new Error("user codex command was not explicitly non-isolated");
   }
+
+  const claudeProbe = await runAndCapture("node", [
+    "bin/agent-dogfeed.mjs",
+    "claude",
+    "--repo",
+    process.cwd(),
+    "--skill",
+    "agent-dogfeed",
+    "--prompt",
+    "Run npm test and report the result.",
+  ]);
+
+  if (claudeProbe.code !== 0) {
+    throw new Error("claude command generation failed");
+  }
+
+  if (
+    !claudeProbe.stdout.includes("claude -p") ||
+    !claudeProbe.stdout.includes("CLAUDE_CONFIG_DIR") ||
+    !claudeProbe.stdout.includes("export CLAUDE_CONFIG_DIR") ||
+    !claudeProbe.stdout.includes("--no-session-persistence") ||
+    !claudeProbe.stdout.includes("--strict-mcp-config") ||
+    !claudeProbe.stdout.includes("--permission-mode bypassPermissions") ||
+    !claudeProbe.stdout.includes("--output-format stream-json") ||
+    !claudeProbe.stdout.includes("$HOME/.claude/skills/agent-dogfeed") ||
+    claudeProbe.stdout.includes("auth.json") ||
+    !claudeProbe.stdout.includes("Run npm test and report the result.")
+  ) {
+    throw new Error("claude command did not include isolated defaults");
+  }
+
+  const userClaudeProbe = await runAndCapture("node", [
+    "bin/agent-dogfeed.mjs",
+    "claude",
+    "--user-claude",
+    "--repo",
+    process.cwd(),
+    "--prompt",
+    "Run npm test and report the result.",
+  ]);
+
+  if (userClaudeProbe.code !== 0) {
+    throw new Error("user claude command generation failed");
+  }
+
+  if (
+    !userClaudeProbe.stdout.includes("claude -p") ||
+    userClaudeProbe.stdout.includes("CLAUDE_CONFIG_DIR") ||
+    userClaudeProbe.stdout.includes("--no-session-persistence") ||
+    !userClaudeProbe.stdout.includes("Run npm test and report the result.")
+  ) {
+    throw new Error("user claude command was not explicitly non-isolated");
+  }
 } finally {
   await rm(tempDir, { recursive: true, force: true });
 }
