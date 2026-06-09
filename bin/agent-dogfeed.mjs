@@ -166,12 +166,15 @@ function usage() {
 
 codex and claude print the probe command for review without rewriting the prompt.
 codex probes are isolated by default: a temporary auth-only CODEX_HOME,
---ignore-user-config, --ignore-rules, --ephemeral, and --sandbox workspace-write.
+--ignore-user-config, --ignore-rules, --ephemeral, and
+--dangerously-bypass-approvals-and-sandbox (no OS sandbox, so keychain access
+works for tools that need it).
 claude probes are isolated by default: a temporary blank CLAUDE_CONFIG_DIR
 (auth comes from the system keychain), --no-session-persistence,
---strict-mcp-config, and --permission-mode bypassPermissions. claude has no OS
-sandbox, so point probes at disposable repos or worktrees. claude probes emit
-the full transcript as stream-json on stdout.
+--strict-mcp-config, and --permission-mode bypassPermissions. claude probes
+emit the full transcript as stream-json on stdout.
+Neither probe is OS-sandboxed: point probes at disposable repos or worktrees
+when the prompt can mutate state.
 Use --skill for each required skill to link into the isolated home.
 Use --user-codex/--user-claude only when intentionally testing inherited user
 config/tools.

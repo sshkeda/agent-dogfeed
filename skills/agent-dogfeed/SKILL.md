@@ -30,12 +30,15 @@ agent-dogfeed claude --repo /absolute/path/to/repo --prompt '<raw prompt>'
 ```
 
 The Codex probe is isolated by default: temporary auth-only `CODEX_HOME`, no
-user config, no user rules, ephemeral session, and `workspace-write` sandbox.
+user config, no user rules, ephemeral session, and approvals/sandbox bypassed
+so keychain-backed tools work.
 
 The Claude probe is isolated by default: temporary blank `CLAUDE_CONFIG_DIR`
 (auth comes from the system keychain), no session persistence, no MCP servers,
 and `--permission-mode bypassPermissions`. It prints the full transcript as
-stream-json. Claude has no OS sandbox: point probes at disposable repos or
+stream-json.
+
+Neither probe runs in an OS sandbox: point probes at disposable repos or
 worktrees when the prompt can mutate state.
 
 Add only the required skills to that isolated environment:

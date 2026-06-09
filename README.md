@@ -41,8 +41,10 @@ template the prompt.
 Codex probes are isolated by default. The generated command creates a temporary
 auth-only `CODEX_HOME`, exports it for the child process, and runs with
 `--ignore-user-config`, `--ignore-rules`, `--ephemeral`, and
-`--sandbox workspace-write`. Your user skills, plugins, rules, config, and
-session state are not inherited.
+`--dangerously-bypass-approvals-and-sandbox`. Your user skills, plugins, rules,
+config, and session state are not inherited. The OS sandbox is bypassed because
+it blocks keychain lookups (for example `security find-generic-password`),
+which breaks dogfeeding any tool whose auth self-repair reads the keychain.
 
 Claude probes are isolated by default. The generated command creates a
 temporary blank `CLAUDE_CONFIG_DIR` (no auth copy is needed: Claude Code reads
@@ -50,8 +52,11 @@ credentials from the system keychain) and runs `claude -p` with
 `--no-session-persistence`, `--strict-mcp-config`, and
 `--permission-mode bypassPermissions`. The probe emits its full transcript as
 stream-json so the parent agent can read every tool call, not just the final
-claim. Unlike Codex, Claude Code has no OS sandbox flag, so point probes at
-disposable repos or worktrees when the prompt can mutate state.
+claim.
+
+Neither probe runs in an OS sandbox: probes can run any command and write
+anywhere, so point them at disposable repos or worktrees when the prompt can
+mutate state.
 
 When the probe needs a skill, link only that skill into the isolated state:
 

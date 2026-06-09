@@ -69,7 +69,7 @@ try {
     !probe.stdout.includes("--ephemeral") ||
     !probe.stdout.includes("--ignore-user-config") ||
     !probe.stdout.includes("--ignore-rules") ||
-    !probe.stdout.includes("--sandbox workspace-write") ||
+    !probe.stdout.includes("--dangerously-bypass-approvals-and-sandbox") ||
     !probe.stdout.includes("$HOME/.codex/skills/agent-dogfeed") ||
     !probe.stdout.includes("Run npm test and report the result.")
   ) {
