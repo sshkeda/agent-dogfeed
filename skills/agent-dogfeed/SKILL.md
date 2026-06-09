@@ -33,10 +33,10 @@ The Codex probe is isolated by default: temporary auth-only `CODEX_HOME`, no
 user config, no user rules, ephemeral session, and approvals/sandbox bypassed
 so keychain-backed tools work.
 
-The Claude probe is isolated by default: temporary blank `CLAUDE_CONFIG_DIR`
-(auth comes from the system keychain), no session persistence, no MCP servers,
-and `--permission-mode bypassPermissions`. It prints the full transcript as
-stream-json.
+The Claude probe is isolated by default: temporary `CLAUDE_CONFIG_DIR` seeded
+only with the keychain OAuth credential, no session persistence, no MCP
+servers, and `--permission-mode bypassPermissions`. It prints the full
+transcript as stream-json.
 
 Neither probe runs in an OS sandbox: point probes at disposable repos or
 worktrees when the prompt can mutate state.
@@ -56,6 +56,9 @@ Capture exact stdout/stderr ordering for a non-interactive target command:
 ```bash
 agent-dogfeed capture --output /tmp/agent-dogfeed-proof.jsonl -- <target-command> [args...]
 ```
+
+Read the proof file directly to validate the contract, then remove it after
+reporting.
 
 ## Rules
 
