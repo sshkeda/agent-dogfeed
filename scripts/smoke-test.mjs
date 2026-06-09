@@ -5,16 +5,17 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawn } from "node:child_process";
 
-const tempDir = await mkdtemp(join(tmpdir(), "agent-test-"));
+const tempDir = await mkdtemp(join(tmpdir(), "agent-dogfeed-"));
 const proofPath = join(tempDir, "proof.jsonl");
 
 try {
   const exitCode = await run("node", [
-    "skills/agent-test/scripts/capture-terminal.mjs",
+    "bin/agent-dogfeed.mjs",
+    "capture",
     "--output",
     proofPath,
     "--",
-    "skills/agent-test/scripts/terminal-contract-fixture.sh",
+    "skills/agent-dogfeed/scripts/terminal-contract-fixture.sh",
   ]);
 
   if (exitCode !== 0) {
@@ -45,6 +46,58 @@ try {
   if (!sawProgress || !sawOutput || !sawCleanExit) {
     throw new Error("smoke fixture did not produce expected evidence");
   }
+
+  const probe = await runAndCapture("node", [
+    "bin/agent-dogfeed.mjs",
+    "codex",
+    "--repo",
+    process.cwd(),
+    "--skill",
+    "agent-dogfeed",
+    "--prompt",
+    "Run npm test and report the result.",
+  ]);
+
+  if (probe.code !== 0) {
+    throw new Error("codex command generation failed");
+  }
+
+  if (
+    !probe.stdout.includes("codex exec") ||
+    !probe.stdout.includes("CODEX_HOME") ||
+    !probe.stdout.includes("export CODEX_HOME") ||
+    !probe.stdout.includes("--ephemeral") ||
+    !probe.stdout.includes("--ignore-user-config") ||
+    !probe.stdout.includes("--ignore-rules") ||
+    !probe.stdout.includes("--sandbox workspace-write") ||
+    !probe.stdout.includes("$HOME/.codex/skills/agent-dogfeed") ||
+    !probe.stdout.includes("Run npm test and report the result.")
+  ) {
+    throw new Error("codex command did not include isolated defaults");
+  }
+
+  const userProbe = await runAndCapture("node", [
+    "bin/agent-dogfeed.mjs",
+    "codex",
+    "--user-codex",
+    "--repo",
+    process.cwd(),
+    "--prompt",
+    "Run npm test and report the result.",
+  ]);
+
+  if (userProbe.code !== 0) {
+    throw new Error("user codex command generation failed");
+  }
+
+  if (
+    !userProbe.stdout.includes("codex exec") ||
+    userProbe.stdout.includes("CODEX_HOME") ||
+    userProbe.stdout.includes("--ephemeral") ||
+    !userProbe.stdout.includes("Run npm test and report the result.")
+  ) {
+    throw new Error("user codex command was not explicitly non-isolated");
+  }
 } finally {
   await rm(tempDir, { recursive: true, force: true });
 }
@@ -54,5 +107,24 @@ function run(command, args) {
     const child = spawn(command, args, { stdio: "inherit" });
     child.once("error", reject);
     child.once("close", (code) => resolve(code ?? 1));
+  });
+}
+
+function runAndCapture(command, args) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(command, args, { stdio: ["ignore", "pipe", "pipe"] });
+    let stdout = "";
+    let stderr = "";
+
+    child.stdout.on("data", (chunk) => {
+      stdout += chunk.toString("utf8");
+    });
+
+    child.stderr.on("data", (chunk) => {
+      stderr += chunk.toString("utf8");
+    });
+
+    child.once("error", reject);
+    child.once("close", (code) => resolve({ code: code ?? 1, stdout, stderr }));
   });
 }
