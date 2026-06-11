@@ -1,10 +1,9 @@
 #!/usr/bin/env node
 
-// agent-dogfeed is superseded by agent-env (github.com/sshkeda/agent-env's
-// local repo at ~/gh/agent-env). This binary is a compatibility shim: it
-// translates the old surface onto `agent-env` and delegates. The probe
-// machinery (isolated CODEX_HOME / CLAUDE_CONFIG_DIR auth seeding) lives in
-// agent-env/lib/isolate.mjs now.
+// agent-dogfeed is the dogfooding METHODOLOGY (see skills/agent-dogfeed);
+// the probe-rendering machinery lives in agent-env. This binary is a thin
+// delegate that keeps the old command surface working on top of
+// `agent-env probe`/`agent-env capture`.
 
 import { spawn } from "node:child_process";
 
@@ -17,7 +16,7 @@ if (translated.error) {
   process.exitCode = 2;
 } else {
   process.stderr.write(
-    "agent-dogfeed: superseded by agent-env — delegating (use `agent-env` directly)\n"
+    "agent-dogfeed: delegating to agent-env (prefer calling agent-env directly)\n"
   );
   const child = spawn("agent-env", translated.args, { stdio: "inherit" });
   child.on("error", (err) => {
@@ -61,7 +60,8 @@ function translate(cmd, rest) {
 }
 
 function usage() {
-  return `agent-dogfeed is superseded by agent-env.
+  return `agent-dogfeed delegates its CLI surface to agent-env (the
+methodology lives in the agent-dogfeed skill).
 
 old surface (still works, delegates):
   agent-dogfeed capture [--output <path>] -- <command> [args...]
